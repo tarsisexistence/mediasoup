@@ -109,179 +109,177 @@ async function init()
 	let producerTransport: Transport | undefined;
 	let consumerTransport: Transport | undefined;
 
+	const waitingForResponse: Map<ServerMessage['action'], Function> = new Map();
+
+	ws.onmessage = async (message) =>
 	{
-		const waitingForResponse: Map<ServerMessage['action'], Function> = new Map();
+		const decodedMessage: ServerMessage = JSON.parse(message.data);
 
-		ws.onmessage = async (message) =>
+		switch (decodedMessage.action)
 		{
-			const decodedMessage: ServerMessage = JSON.parse(message.data);
+			case 'Init': {
+				// It is expected that server will send initialization message right after
+				// WebSocket connection is established
+				await device.load({
+					routerRtpCapabilities : decodedMessage.routerRtpCapabilities
+				});
 
-			switch (decodedMessage.action)
-			{
-				case 'Init': {
-					// It is expected that server will send initialization message right after
-					// WebSocket connection is established
-					await device.load({
-						routerRtpCapabilities : decodedMessage.routerRtpCapabilities
-					});
+				// Send client-side initialization message back right away
+				send({
+					action          : 'Init',
+					rtpCapabilities : device.rtpCapabilities
+				});
 
-					// Send client-side initialization message back right away
-					send({
-						action          : 'Init',
-						rtpCapabilities : device.rtpCapabilities
-					});
+				// Producer transport is needed to send audio and video to SFU
+				producerTransport = device.createSendTransport(
+					decodedMessage.producerTransportOptions
+				);
 
-					// Producer transport is needed to send audio and video to SFU
-					producerTransport = device.createSendTransport(
-						decodedMessage.producerTransportOptions
-					);
-
-					producerTransport
-						.on('connect', ({ dtlsParameters }, success) =>
-						{
-							// Send request to establish producer transport connection
-							send({
-								action : 'ConnectProducerTransport',
-								dtlsParameters
-							});
-							// And wait for confirmation, but, obviously, no error handling,
-							// which you should definitely have in real-world applications
-							waitingForResponse.set('ConnectedProducerTransport', () =>
-							{
-								success();
-								console.log('Producer transport connected');
-							});
-						})
-						.on('produce', ({ kind, rtpParameters }, success) =>
-						{
-							// Once connection is established, send request to produce
-							// audio or video track
-							send({
-								action : 'Produce',
-								kind,
-								rtpParameters
-							});
-							// And wait for confirmation, but, obviously, no error handling,
-							// which you should definitely have in real-world applications
-							waitingForResponse.set('Produced', ({ id }: {id: string}) =>
-							{
-								success({ id });
-							});
+				producerTransport
+					.on('connect', ({ dtlsParameters }, success) =>
+					{
+						// Send request to establish producer transport connection
+						send({
+							action : 'ConnectProducerTransport',
+							dtlsParameters
 						});
+						// And wait for confirmation, but, obviously, no error handling,
+						// which you should definitely have in real-world applications
+						waitingForResponse.set('ConnectedProducerTransport', () =>
+						{
+							success();
+							console.log('Producer transport connected');
+						});
+					})
+					.on('produce', ({ kind, rtpParameters }, success) =>
+					{
+						// Once connection is established, send request to produce
+						// audio or video track
+						send({
+							action : 'Produce',
+							kind,
+							rtpParameters
+						});
+						// And wait for confirmation, but, obviously, no error handling,
+						// which you should definitely have in real-world applications
+						waitingForResponse.set('Produced', ({ id }: {id: string}) =>
+						{
+							success({ id });
+						});
+					});
 
-					// Request microphone and camera access, in real-world apps you may want
-					// to do this separately so that audio-only and video-only cases are
-					// handled nicely instead of failing completely
-					const mediaStream = await navigator.mediaDevices.getUserMedia({
-						audio : true,
-						video : {
-							width : {
-								ideal : 1270
-							},
-							height : {
-								ideal : 720
-							},
-							frameRate : {
-								ideal : 60
-							}
+				// Request microphone and camera access, in real-world apps you may want
+				// to do this separately so that audio-only and video-only cases are
+				// handled nicely instead of failing completely
+				const mediaStream = await navigator.mediaDevices.getUserMedia({
+					audio : true,
+					video : {
+						width : {
+							ideal : 1280
+						},
+						height : {
+							ideal : 720
+						},
+						frameRate : {
+							ideal : 60
 						}
+					}
+				});
+
+				sendPreview.srcObject = mediaStream;
+
+				const producers = [];
+
+				// And create producers for all tracks that were previously requested
+				for (const track of mediaStream.getTracks())
+				{
+					const producer = await producerTransport.produce({ track });
+
+					producers.push(producer);
+					console.log(`${track.kind} producer created:`, producer);
+				}
+
+				// Consumer transport is now needed to receive previously produced
+				// tracks back
+				consumerTransport = device.createRecvTransport(
+					decodedMessage.consumerTransportOptions
+				);
+
+				consumerTransport
+					.on('connect', ({ dtlsParameters }, success) =>
+					{
+						// Send request to establish consumer transport connection
+						send({
+							action : 'ConnectConsumerTransport',
+							dtlsParameters
+						});
+						// And wait for confirmation, but, obviously, no error handling,
+						// which you should definitely have in real-world applications
+						waitingForResponse.set('ConnectedConsumerTransport', () =>
+						{
+							success();
+							console.log('Consumer transport connected');
+						});
 					});
 
-					sendPreview.srcObject = mediaStream;
-
-					const producers = [];
-
-					// And create producers for all tracks that were previously requested
-					for (const track of mediaStream.getTracks())
+				// For simplicity of this example producers were stored in an array
+				// and are now all consumed one at a time
+				for (const producer of producers)
+				{
+					await new Promise((resolve) =>
 					{
-						const producer = await producerTransport.produce({ track });
-
-						producers.push(producer);
-						console.log(`${track.kind} producer created:`, producer);
-					}
-
-					// Consumer transport is now needed to receive previously produced
-					// tracks back
-					consumerTransport = device.createRecvTransport(
-						decodedMessage.consumerTransportOptions
-					);
-
-					consumerTransport
-						.on('connect', ({ dtlsParameters }, success) =>
-						{
-							// Send request to establish consumer transport connection
-							send({
-								action : 'ConnectConsumerTransport',
-								dtlsParameters
-							});
-							// And wait for confirmation, but, obviously, no error handling,
-							// which you should definitely have in real-world applications
-							waitingForResponse.set('ConnectedConsumerTransport', () =>
-							{
-								success();
-								console.log('Consumer transport connected');
-							});
+						// Send request to consume producer
+						send({
+							action     : 'Consume',
+							producerId : producer.id as ProducerId
 						});
-
-					// For simplicity of this example producers were stored in an array
-					// and are now all consumed one at a time
-					for (const producer of producers)
-					{
-						await new Promise((resolve) =>
+						// And wait for confirmation, but, obviously, no error handling,
+						// which you should definitely have in real-world applications
+						waitingForResponse.set('Consumed', async (consumerOptions: ConsumerOptions) =>
 						{
-							// Send request to consume producer
+							// Once confirmation is received, corresponding consumer
+							// can be created client-side
+							const consumer = await (consumerTransport as Transport).consume(
+								consumerOptions
+							);
+
+							console.log(`${consumer.kind} consumer created:`, consumer);
+
+							// Consumer needs to be resumed after being created in
+							// paused state (see official documentation about why:
+							// https://mediasoup.org/documentation/v3/mediasoup/api/#transport-consume)
 							send({
-								action     : 'Consume',
-								producerId : producer.id as ProducerId
+								action : 'ConsumerResume',
+								id     : consumer.id as ConsumerId
 							});
-							// And wait for confirmation, but, obviously, no error handling,
-							// which you should definitely have in real-world applications
-							waitingForResponse.set('Consumed', async (consumerOptions: ConsumerOptions) =>
-							{
-								// Once confirmation is received, corresponding consumer
-								// can be created client-side
-								const consumer = await (consumerTransport as Transport).consume(
-									consumerOptions
-								);
 
-								console.log(`${consumer.kind} consumer created:`, consumer);
+							receiveMediaStream.addTrack(consumer.track);
+							receivePreview.srcObject = receiveMediaStream;
 
-								// Consumer needs to be resumed after being created in
-								// paused state (see official documentation about why:
-								// https://mediasoup.org/documentation/v3/mediasoup/api/#transport-consume)
-								send({
-									action : 'ConsumerResume',
-									id     : consumer.id as ConsumerId
-								});
-
-								receiveMediaStream.addTrack(consumer.track);
-								receivePreview.srcObject = receiveMediaStream;
-
-								resolve(undefined);
-							});
+							resolve(undefined);
 						});
-					}
-
-					break;
+					});
 				}
-				default: {
-					// All messages other than initialization go here and are assumed
-					// to be notifications that correspond to previously sent requests
-					const callback = waitingForResponse.get(decodedMessage.action);
 
-					if (callback)
-					{
-						waitingForResponse.delete(decodedMessage.action);
-						callback(decodedMessage);
-					}
-					else
-					{
-						console.error('Received unexpected message', decodedMessage);
-					}
+				break;
+			}
+			default: {
+				// All messages other than initialization go here and are assumed
+				// to be notifications that correspond to previously sent requests
+				const callback = waitingForResponse.get(decodedMessage.action);
+
+				if (callback)
+				{
+					waitingForResponse.delete(decodedMessage.action);
+					callback(decodedMessage);
+				}
+				else
+				{
+					console.error('Received unexpected message', decodedMessage);
 				}
 			}
-		};
-	}
+		}
+	};
 	ws.onerror = console.error;
 }
 
