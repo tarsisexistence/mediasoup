@@ -95,6 +95,9 @@ async function init()
 	const decSL = document.querySelector('#decSL') as HTMLButtonElement;
 	const incSL = document.querySelector('#incSL') as HTMLButtonElement;
 
+	let videoProducer: Producer | null = null;
+	let maxSpatialLayer = -1
+
 	decSL.addEventListener('click', () => {
 		if (maxSpatialLayer > -1) {
 			maxSpatialLayer -=1
@@ -102,14 +105,12 @@ async function init()
 		}
 	});
 	incSL.addEventListener('click', () => {
-		if (maxSpatialLayer < 2) {
+		if (videoProducer?.rtpParameters.encodings && maxSpatialLayer < videoProducer.rtpParameters.encodings.length - 1) {
 			maxSpatialLayer += 1
 			renderMaxSpatialLayer()
 		}
 	});
 
-	let videoProducer: Producer | null = null;
-	let maxSpatialLayer = -1
 
 	const renderMaxSpatialLayer = () => {
 		SL.innerHTML = maxSpatialLayer > - 1 ? String(maxSpatialLayer) : 'none';
@@ -223,7 +224,7 @@ async function init()
 
 					if (producer.kind === 'video') {
 						videoProducer = producer;
-						maxSpatialLayer = videoProducer.maxSpatialLayer ?? (videoProducer.rtpParameters.encodings?.length ?? 0   - 1);
+						maxSpatialLayer = videoProducer.rtpParameters.encodings ?  videoProducer.rtpParameters.encodings.length - 1 : -1
 						renderMaxSpatialLayer()
 					}
 				}
