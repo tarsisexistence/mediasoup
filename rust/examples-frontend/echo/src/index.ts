@@ -2,6 +2,7 @@
 import { Device } from 'mediasoup-client';
 import { MediaKind, RtpCapabilities, RtpParameters } from 'mediasoup-client/lib/RtpParameters';
 import { DtlsParameters, TransportOptions, Transport } from 'mediasoup-client/lib/Transport';
+import { Producer } from 'mediasoup-client/lib/types';
 import { ConsumerOptions } from 'mediasoup-client/lib/Consumer';
 
 type Brand<K, T> = K & { __brand: T };
@@ -87,14 +88,36 @@ async function init()
 	const sendPreview = document.querySelector('#preview-send') as HTMLVideoElement;
 	const receivePreview = document.querySelector('#preview-receive') as HTMLVideoElement;
 
-	sendPreview.onloadedmetadata = () =>
-	{
-		sendPreview.play();
-	};
-	receivePreview.onloadedmetadata = () =>
-	{
-		receivePreview.play();
-	};
+	sendPreview.onloadedmetadata = () => sendPreview.play();
+	receivePreview.onloadedmetadata = () => receivePreview.play();
+
+	const SL = document.querySelector('#SL') as HTMLSpanElement
+	const decSL = document.querySelector('#decSL') as HTMLButtonElement;
+	const incSL = document.querySelector('#incSL') as HTMLButtonElement;
+
+	decSL.addEventListener('click', () => {
+		if (maxSpatialLayer > -1) {
+			maxSpatialLayer -=1
+			renderMaxSpatialLayer()
+		}
+	});
+	incSL.addEventListener('click', () => {
+		if (maxSpatialLayer < 2) {
+			maxSpatialLayer += 1
+			renderMaxSpatialLayer()
+		}
+	});
+
+	let videoProducer: Producer | null = null;
+	let maxSpatialLayer = -1
+
+	const renderMaxSpatialLayer = () => {
+		SL.innerHTML = maxSpatialLayer > - 1 ? String(maxSpatialLayer) : 'none';
+
+		videoProducer?.setMaxSpatialLayer(maxSpatialLayer)
+	}
+
+	renderMaxSpatialLayer()
 
 	const receiveMediaStream = new MediaStream();
 
@@ -197,6 +220,12 @@ async function init()
 
 					producers.push(producer);
 					console.log(`${track.kind} producer created:`, producer);
+
+					if (producer.kind === 'video') {
+						videoProducer = producer;
+						maxSpatialLayer = videoProducer.maxSpatialLayer ?? (videoProducer.rtpParameters.encodings?.length ?? 0   - 1);
+						renderMaxSpatialLayer()
+					}
 				}
 
 				// Consumer transport is now needed to receive previously produced
@@ -255,6 +284,10 @@ async function init()
 
 							receiveMediaStream.addTrack(consumer.track);
 							receivePreview.srcObject = receiveMediaStream;
+
+							if (consumer.kind === 'video') {
+								// consumerVideo = consumer.rtpParameters
+							}
 
 							resolve(undefined);
 						});
