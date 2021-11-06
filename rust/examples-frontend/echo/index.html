@@ -16,20 +16,8 @@
     video {
         max-width: 100%;
     }
-
-    #container {
-        display: flex;
-        flex-direction: column;
-        justify-content: space-between;
-        height: 100vh;
-    }
-
-    .previews {
-        display: flex;
-    }
 </style>
 <div id="container">
-    <div class="previews">
         <figure>
             <video id="preview-send" muted controls></video>
             <figcaption>Send preview</figcaption>
@@ -39,12 +27,5 @@
             <figcaption>Receive preview</figcaption>
         </figure>
     </div>
-
-    <div class="controls">
-        <button id="decSL" type="button">down</button>
-        [<span id="SL">none</span>]
-        <button id="incSL" type="button">up</button>
-    </div>
-</div>
 <script src="dist/bundle.js">
 </script>
