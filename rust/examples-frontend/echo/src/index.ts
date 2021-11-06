@@ -182,7 +182,7 @@ async function init()
 						send({
 							action : 'Produce',
 							kind,
-							rtpParameters
+							rtpParameters,
 						});
 						// And wait for confirmation, but, obviously, no error handling,
 						// which you should definitely have in real-world applications
@@ -217,7 +217,14 @@ async function init()
 				// And create producers for all tracks that were previously requested
 				for (const track of mediaStream.getTracks())
 				{
-					const producer = await producerTransport.produce({ track });
+					const producer = await producerTransport.produce({
+						track,
+						encodings: track.kind === 'video' ? [
+							{ maxBitrate: 100000 },
+							{ maxBitrate: 300000 },
+							{ maxBitrate: 900000 },
+						] : undefined
+					});
 
 					producers.push(producer);
 					console.log(`${track.kind} producer created:`, producer);
