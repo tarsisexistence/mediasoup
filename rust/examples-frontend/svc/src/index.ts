@@ -215,15 +215,26 @@ async function init()
                 const producers = [];
 
                 // And create producers for all tracks that were previously requested
-                for (const track of mediaStream.getTracks())
-                {
-                    const producer = await producerTransport.produce({
-                        track,
-                        encodings: track.kind === 'video' ? [
+                for (const track of mediaStream.getTracks()) {
+                    const codec = track.kind === 'video' ? device.rtpCapabilities.codecs?.find((codec) => codec.mimeType.toLowerCase() === 'video/vp9') ?? device.rtpCapabilities.codecs?.find((codec) => codec.mimeType.toLowerCase() === 'video/vp8') : undefined
+                    let encodings
+
+                    if (codec?.mimeType.toLowerCase() === 'video/vp8') {
+                        encodings = [
                             { maxBitrate: 100000 },
                             { maxBitrate: 300000 },
                             { maxBitrate: 900000 },
-                        ] : undefined
+                        ]
+                    } else if (codec?.mimeType.toLowerCase() === 'video/vp9') {
+                        encodings = [
+                            { scalabilityMode: 'S3T3' },
+                        ]
+                    }
+
+                    const producer = await producerTransport.produce({
+                        track,
+                        encodings,
+                        codec
                     });
 
                     producers.push(producer);
