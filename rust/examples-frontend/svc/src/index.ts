@@ -100,25 +100,25 @@ async function init()
 
     decSL.addEventListener('click', () => {
         if (maxSpatialLayer > -1) {
-            maxSpatialLayer -=1
-            setMaxSpatialLayer()
+            setMaxSpatialLayer(maxSpatialLayer - 1)
         }
     });
     incSL.addEventListener('click', () => {
         if (videoProducer?.rtpParameters.encodings && maxSpatialLayer < videoProducer.rtpParameters.encodings.length - 1) {
-            maxSpatialLayer += 1
-            setMaxSpatialLayer()
+            setMaxSpatialLayer(maxSpatialLayer + 1)
         }
     });
 
 
-    const setMaxSpatialLayer = (): void => {
-        videoProducer?.setMaxSpatialLayer(maxSpatialLayer)
+    const setMaxSpatialLayer = (value: number): void => {
+        maxSpatialLayer = value
 
-        SL.textContent = maxSpatialLayer > - 1 ? String(maxSpatialLayer) : 'Disabled';
+        videoProducer?.setMaxSpatialLayer(value)
+
+        SL.innerHTML = value > - 1 ? String(value) : 'disabled';
     }
 
-    setMaxSpatialLayer()
+    setMaxSpatialLayer(maxSpatialLayer)
 
     const receiveMediaStream = new MediaStream();
 
@@ -242,8 +242,7 @@ async function init()
 
                     if (producer.kind === 'video') {
                         videoProducer = producer;
-                        maxSpatialLayer = videoProducer.rtpParameters.encodings ?  videoProducer.rtpParameters.encodings.length - 1 : -1
-                        setMaxSpatialLayer()
+                        setMaxSpatialLayer(videoProducer.rtpParameters.encodings ?  videoProducer.rtpParameters.encodings.length - 1 : -1)
                     }
                 }
 
