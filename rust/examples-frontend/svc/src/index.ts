@@ -115,7 +115,7 @@ async function init()
     const setMaxSpatialLayer = (): void => {
         videoProducer?.setMaxSpatialLayer(maxSpatialLayer)
 
-        SL.innerHTML = maxSpatialLayer > - 1 ? String(maxSpatialLayer) : 'none';
+        SL.textContent = maxSpatialLayer > - 1 ? String(maxSpatialLayer) : 'Disabled';
     }
 
     setMaxSpatialLayer()
