@@ -355,9 +355,3 @@ async function init()
 }
 
 init();
-
-
-// send a client->server message setConsumerPreferredLayers
-// get consumer from the list and consumer.setPreferredLayers
-// consumer listener on server consumer.layerschange that notifies the client about layerschange with actual data
-// listen `consumerLayersChanged` message on client

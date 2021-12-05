@@ -294,8 +294,6 @@ impl Handler<ClientMessage> for SvcConnection {
                 self.client_rtp_capabilities.replace(rtp_capabilities);
             }
             ClientMessage::SetConsumerPreferredLayers { id, preferred_layers } => {
-                println!("{} {:?}", id, preferred_layers);
-
                 if let Some(consumer) = self.consumers.get(&id).cloned() {
                     actix::spawn(async move {
                         match consumer.set_preferred_layers(preferred_layers).await {
