@@ -109,7 +109,7 @@ enum ClientMessage {
     
     /// Request to set preferred spatial and temporal layers
     #[serde(rename_all = "camelCase")]
-    SetConsumerPreferredLayers { id: ConsumerId, preferred_layers: PreferredLayers }
+    SetConsumerPreferredLayers { id: ConsumerId, preferred_layers: ConsumerLayers }
 }
 
 #[derive(Deserialize, Debug)]
@@ -295,6 +295,28 @@ impl Handler<ClientMessage> for SvcConnection {
             }
             ClientMessage::SetConsumerPreferredLayers { id, preferred_layers } => {
                 println!("{} {:?}", id, preferred_layers);
+
+                if let Some(consumer) = self.consumers.get(&id).cloned() {
+                    actix::spawn(async move {
+                        match consumer.set_preferred_layers(preferred_layers).await {
+                            Ok(_) => {
+                                println!(
+                                    "Successfully set preferred layers {:?} consumer {}",
+                                    preferred_layers,
+                                    consumer.id(),
+                                );
+                            }
+                            Err(error) => {
+                                println!(
+                                    "Failed to set preferred layers {:?} consumer {}: {}",
+                                    preferred_layers,
+                                    consumer.id(),
+                                    error,
+                                );
+                            }
+                        }
+                    });
+                }
             }
             ClientMessage::ConnectProducerTransport { dtls_parameters } => {
                 let address = ctx.address();
