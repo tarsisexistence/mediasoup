@@ -2,7 +2,7 @@
 import { Device } from 'mediasoup-client';
 import { MediaKind, RtpCapabilities, RtpParameters } from 'mediasoup-client/lib/RtpParameters';
 import { DtlsParameters, TransportOptions, Transport } from 'mediasoup-client/lib/Transport';
-import { Producer } from 'mediasoup-client/lib/types';
+import { Producer, Consumer } from 'mediasoup-client/lib/types';
 import { ConsumerOptions } from 'mediasoup-client/lib/Consumer';
 
 type Brand<K, T> = K & { __brand: T };
@@ -75,13 +75,23 @@ interface ClientConsumerResume {
     id: ConsumerId;
 }
 
+interface ClientSetConsumerPreferredLayers {
+    action: 'SetConsumerPreferredLayers';
+    id: ConsumerId;
+    preferredLayers: {
+        spatialLayer: number
+        temporalLayer: number
+    }
+}
+
 type ClientMessage =
     ClientInit |
     ClientConnectProducerTransport |
     ClientProduce |
     ClientConnectConsumerTransport |
     ClientConsume |
-    ClientConsumerResume;
+    ClientConsumerResume |
+    ClientSetConsumerPreferredLayers;
 
 async function init()
 {
@@ -96,36 +106,46 @@ async function init()
     const incSL = document.querySelector('#incSL') as HTMLButtonElement;
 
     let videoProducer: Producer | null = null;
-    let maxSpatialLayer = -1
+    let videoConsumer: Consumer | null = null
+    let preferredLayers = -1
 
     decSL.addEventListener('click', () => {
-        if (maxSpatialLayer > -1) {
-            setMaxSpatialLayer(maxSpatialLayer - 1)
+        if (preferredLayers > -1) {
+            setPreferredLayers(preferredLayers - 1)
         }
     });
     incSL.addEventListener('click', () => {
-        if (videoProducer?.rtpParameters.encodings && maxSpatialLayer < videoProducer.rtpParameters.encodings.length - 1) {
-            setMaxSpatialLayer(maxSpatialLayer + 1)
+        if (videoProducer?.rtpParameters.encodings && preferredLayers < videoProducer.rtpParameters.encodings.length - 1) {
+            setPreferredLayers(preferredLayers + 1)
         }
     });
 
 
-    const setMaxSpatialLayer = (value: number): void => {
-        maxSpatialLayer = value
+    const setPreferredLayers = (layer: number): void => {
+        // TODO: update only if action sent (!!videoConsumer)
+        preferredLayers = layer
+        SL.innerHTML = layer > - 1 ? String(layer) : 'disabled';
 
-        videoProducer?.setMaxSpatialLayer(value)
+        if (videoConsumer) {
+            send({
+                action : 'SetConsumerPreferredLayers',
+                id: videoConsumer.id as ConsumerId,
+                preferredLayers: {
+                    spatialLayer: layer,
+                    temporalLayer: layer
+                }
+            });
 
-        SL.innerHTML = value > - 1 ? String(value) : 'disabled';
+        }
+
     }
 
-    setMaxSpatialLayer(maxSpatialLayer)
+    setPreferredLayers(preferredLayers)
 
     const receiveMediaStream = new MediaStream();
-
     const ws = new WebSocket('ws://localhost:3000/ws');
 
-    function send(message: ClientMessage)
-    {
+    function send(message: ClientMessage) {
         ws.send(JSON.stringify(message));
     }
 
@@ -242,7 +262,7 @@ async function init()
 
                     if (producer.kind === 'video') {
                         videoProducer = producer;
-                        setMaxSpatialLayer(videoProducer.rtpParameters.encodings ?  videoProducer.rtpParameters.encodings.length - 1 : -1)
+                        setPreferredLayers(videoProducer.rtpParameters.encodings ?  videoProducer.rtpParameters.encodings.length - 1 : -1)
                     }
                 }
 
@@ -304,7 +324,7 @@ async function init()
                             receivePreview.srcObject = receiveMediaStream;
 
                             if (consumer.kind === 'video') {
-                                // consumerVideo = consumer.rtpParameters
+                                videoConsumer = consumer
                             }
 
                             resolve(undefined);
@@ -335,3 +355,9 @@ async function init()
 }
 
 init();
+
+
+// send a client->server message setConsumerPreferredLayers
+// get consumer from the list and consumer.setPreferredLayers
+// consumer listener on server consumer.layerschange that notifies the client about layerschange with actual data
+// listen `consumerLayersChanged` message on client

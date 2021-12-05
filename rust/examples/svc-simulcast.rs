@@ -106,6 +106,17 @@ enum ClientMessage {
     /// Request to resume consumer that was previously created
     #[serde(rename_all = "camelCase")]
     ConsumerResume { id: ConsumerId },
+    
+    /// Request to set preferred spatial and temporal layers
+    #[serde(rename_all = "camelCase")]
+    SetConsumerPreferredLayers { id: ConsumerId, preferred_layers: PreferredLayers }
+}
+
+#[derive(Deserialize, Debug)]
+#[serde(rename_all = "camelCase")]
+struct PreferredLayers {
+    spatial_layer: u32,
+    temporal_layer: u32,
 }
 
 /// Internal actor messages for convenience
@@ -281,6 +292,9 @@ impl Handler<ClientMessage> for SvcConnection {
                 // We need to know client's RTP capabilities, those are sent using initialization
                 // message and are stored in connection struct for future use
                 self.client_rtp_capabilities.replace(rtp_capabilities);
+            }
+            ClientMessage::SetConsumerPreferredLayers { id, preferred_layers } => {
+                println!("{} {:?}", id, preferred_layers);
             }
             ClientMessage::ConnectProducerTransport { dtls_parameters } => {
                 let address = ctx.address();
