@@ -150,26 +150,22 @@ async function init()
 
 
     const setPreferredLayers = (spatialLayer: number, temporalLayer: number): void => {
-        // TODO: update only if action sent (!!videoConsumer)
+        if (!videoConsumer) {
+            throw new Error('Failed to update preferred layers: video consumer not found.')
+        }
+
         preferredSpatialLayer = spatialLayer
         preferredTemporalLayer = temporalLayer
 
         spatialLayerNode.innerHTML = String(spatialLayer);
         temporalLayerNode.innerHTML = String(temporalLayer);
 
-        if (videoConsumer) {
-            send({
-                action : 'SetConsumerPreferredLayers',
-                id: videoConsumer.id as ConsumerId,
-                preferredLayers: { spatialLayer, temporalLayer }
-            });
-
-        }
-
+        send({
+            action : 'SetConsumerPreferredLayers',
+            id: videoConsumer.id as ConsumerId,
+            preferredLayers: { spatialLayer, temporalLayer }
+        });
     }
-
-    // TODO: check do we need to call this on init
-    setPreferredLayers(preferredSpatialLayer, preferredTemporalLayer);
 
     const receiveMediaStream = new MediaStream();
     const ws = new WebSocket('ws://localhost:3000/ws');
