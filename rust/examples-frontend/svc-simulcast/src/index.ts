@@ -1,8 +1,8 @@
 /* eslint-disable no-console */
-import { Device } from 'mediasoup-client';
+import { Device, parseScalabilityMode } from 'mediasoup-client';
 import { MediaKind, RtpCapabilities, RtpParameters } from 'mediasoup-client/lib/RtpParameters';
 import { DtlsParameters, TransportOptions, Transport } from 'mediasoup-client/lib/Transport';
-import { Producer, Consumer } from 'mediasoup-client/lib/types';
+import { Consumer } from 'mediasoup-client/lib/types';
 import { ConsumerOptions } from 'mediasoup-client/lib/Consumer';
 
 type Brand<K, T> = K & { __brand: T };
@@ -105,42 +105,69 @@ async function init()
     const decSL = document.querySelector('#decSL') as HTMLButtonElement;
     const incSL = document.querySelector('#incSL') as HTMLButtonElement;
 
-    let videoProducer: Producer | null = null;
-    let videoConsumer: Consumer | null = null
-    let preferredLayers = -1
+    let videoConsumer: Consumer | null = null;
+
+    let spatialLayers = 0;
+    let temporalLayers = 0;
+    let preferredSpatialLayer = 0;
+    let preferredTemporalLayer = 0;
 
     decSL.addEventListener('click', () => {
-        if (preferredLayers > -1) {
-            setPreferredLayers(preferredLayers - 1)
+        let newPreferredSpatialLayer: number;
+        let newPreferredTemporalLayer: number;
+
+        if (preferredTemporalLayer > 0) {
+            newPreferredSpatialLayer = preferredSpatialLayer;
+            newPreferredTemporalLayer = preferredTemporalLayer - 1;
+        } else if (preferredSpatialLayer > 0) {
+            newPreferredSpatialLayer = preferredSpatialLayer - 1;
+            newPreferredTemporalLayer = temporalLayers - 1;
+        } else {
+            newPreferredSpatialLayer = spatialLayers - 1;
+            newPreferredTemporalLayer = temporalLayers - 1;
         }
+
+        setPreferredLayers(newPreferredSpatialLayer, newPreferredTemporalLayer)
     });
     incSL.addEventListener('click', () => {
-        if (videoProducer?.rtpParameters.encodings && preferredLayers < videoProducer.rtpParameters.encodings.length - 1) {
-            setPreferredLayers(preferredLayers + 1)
+        let newPreferredSpatialLayer: number;
+        let newPreferredTemporalLayer: number;
+
+        if (preferredTemporalLayer < 2) {
+            newPreferredSpatialLayer = preferredSpatialLayer;
+            newPreferredTemporalLayer = preferredTemporalLayer + 1;
+        } else if (preferredSpatialLayer < 2) {
+            newPreferredSpatialLayer = preferredSpatialLayer + 1;
+            newPreferredTemporalLayer = 0;
+        } else {
+            newPreferredSpatialLayer = preferredSpatialLayer;
+            newPreferredTemporalLayer = preferredTemporalLayer;
         }
+
+        setPreferredLayers(newPreferredSpatialLayer, newPreferredTemporalLayer)
     });
 
 
-    const setPreferredLayers = (layer: number): void => {
+    const setPreferredLayers = (spatialLayer: number, temporalLayer: number): void => {
         // TODO: update only if action sent (!!videoConsumer)
-        preferredLayers = layer
-        SL.innerHTML = layer > - 1 ? String(layer) : 'disabled';
+        preferredSpatialLayer = spatialLayer
+        preferredTemporalLayer = temporalLayer
+        // TODO: render temporal layer too
+        SL.innerHTML = String(spatialLayer);
 
         if (videoConsumer) {
             send({
                 action : 'SetConsumerPreferredLayers',
                 id: videoConsumer.id as ConsumerId,
-                preferredLayers: {
-                    spatialLayer: layer,
-                    temporalLayer: layer
-                }
+                preferredLayers: { spatialLayer, temporalLayer }
             });
 
         }
 
     }
 
-    setPreferredLayers(preferredLayers)
+    // TODO: check do we need to call this on init
+    setPreferredLayers(preferredSpatialLayer, preferredTemporalLayer);
 
     const receiveMediaStream = new MediaStream();
     const ws = new WebSocket('ws://localhost:3000/ws');
@@ -259,11 +286,6 @@ async function init()
 
                     producers.push(producer);
                     console.log(`${track.kind} producer created:`, producer);
-
-                    if (producer.kind === 'video') {
-                        videoProducer = producer;
-                        setPreferredLayers(videoProducer.rtpParameters.encodings ?  videoProducer.rtpParameters.encodings.length - 1 : -1)
-                    }
                 }
 
                 // Consumer transport is now needed to receive previously produced
@@ -325,6 +347,18 @@ async function init()
 
                             if (consumer.kind === 'video') {
                                 videoConsumer = consumer
+
+                                const encodings = videoConsumer.rtpParameters.encodings ?? [];
+
+                                if (encodings[0]) {
+                                    const { spatialLayers: _spatialLayers, temporalLayers: _temporalLayers } =
+                                        parseScalabilityMode(encodings[0].scalabilityMode)
+
+                                    spatialLayers = _spatialLayers;
+                                    temporalLayers = _temporalLayers;
+                                    preferredSpatialLayer = _spatialLayers - 1;
+                                    preferredTemporalLayer = _temporalLayers - 1;
+                                }
                             }
 
                             resolve(undefined);
