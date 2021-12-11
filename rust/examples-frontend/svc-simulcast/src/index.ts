@@ -360,6 +360,8 @@ async function init()
                                     temporalLayers = _temporalLayers;
                                     preferredSpatialLayer = _spatialLayers - 1;
                                     preferredTemporalLayer = _temporalLayers - 1;
+
+                                    setPreferredLayers(preferredSpatialLayer, preferredTemporalLayer);
                                 }
                             }
 
