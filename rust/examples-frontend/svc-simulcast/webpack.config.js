@@ -22,9 +22,6 @@ module.exports = {
 	},
 	devServer : {
 		liveReload : false,
-		port       : 3001,
-		static     : {
-			directory: __dirname
-		}
+		port       : 3001
 	}
 };
