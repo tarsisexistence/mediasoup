@@ -103,17 +103,16 @@ async function init()
 
     const spatialLayerNode = document.querySelector('#spatial') as HTMLSpanElement
     const temporalLayerNode = document.querySelector('#temporal') as HTMLSpanElement
-    const decSL = document.querySelector('#decSL') as HTMLButtonElement;
-    const incSL = document.querySelector('#incSL') as HTMLButtonElement;
+    const decreaseLayer = document.querySelector('#decreaseLayer') as HTMLButtonElement;
+    const increaseLayer = document.querySelector('#increaseLayer') as HTMLButtonElement;
 
     let videoConsumer: Consumer | null = null;
-
     let spatialLayers = 0;
     let temporalLayers = 0;
     let preferredSpatialLayer = 0;
     let preferredTemporalLayer = 0;
 
-    decSL.addEventListener('click', () => {
+    decreaseLayer.addEventListener('click', () => {
         let newPreferredSpatialLayer: number;
         let newPreferredTemporalLayer: number;
 
@@ -130,7 +129,7 @@ async function init()
 
         setPreferredLayers(newPreferredSpatialLayer, newPreferredTemporalLayer)
     });
-    incSL.addEventListener('click', () => {
+    increaseLayer.addEventListener('click', () => {
         let newPreferredSpatialLayer: number;
         let newPreferredTemporalLayer: number;
 
