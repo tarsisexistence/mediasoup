@@ -101,7 +101,8 @@ async function init()
     sendPreview.onloadedmetadata = () => sendPreview.play();
     receivePreview.onloadedmetadata = () => receivePreview.play();
 
-    const SL = document.querySelector('#SL') as HTMLSpanElement
+    const spatialLayerNode = document.querySelector('#spatial') as HTMLSpanElement
+    const temporalLayerNode = document.querySelector('#temporal') as HTMLSpanElement
     const decSL = document.querySelector('#decSL') as HTMLButtonElement;
     const incSL = document.querySelector('#incSL') as HTMLButtonElement;
 
@@ -152,8 +153,9 @@ async function init()
         // TODO: update only if action sent (!!videoConsumer)
         preferredSpatialLayer = spatialLayer
         preferredTemporalLayer = temporalLayer
-        // TODO: render temporal layer too
-        SL.innerHTML = String(spatialLayer);
+
+        spatialLayerNode.innerHTML = String(spatialLayer);
+        temporalLayerNode.innerHTML = String(temporalLayer);
 
         if (videoConsumer) {
             send({
