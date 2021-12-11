@@ -141,8 +141,8 @@ async function init()
             newPreferredSpatialLayer = preferredSpatialLayer + 1;
             newPreferredTemporalLayer = 0;
         } else {
-            newPreferredSpatialLayer = preferredSpatialLayer;
-            newPreferredTemporalLayer = preferredTemporalLayer;
+            newPreferredSpatialLayer = 0;
+            newPreferredTemporalLayer = 0;
         }
 
         setPreferredLayers(newPreferredSpatialLayer, newPreferredTemporalLayer)
