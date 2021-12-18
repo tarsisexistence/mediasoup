@@ -106,7 +106,6 @@ enum ClientMessage {
     /// Request to resume consumer that was previously created
     #[serde(rename_all = "camelCase")]
     ConsumerResume { id: ConsumerId },
-    
     /// Request to set preferred spatial and temporal layers
     #[serde(rename_all = "camelCase")]
     SetConsumerPreferredLayers { id: ConsumerId, preferred_layers: ConsumerLayers }
