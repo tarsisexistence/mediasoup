@@ -121,7 +121,10 @@ enum ClientMessage {
     ConsumerResume { id: ConsumerId },
     /// Request to set preferred spatial and temporal layers
     #[serde(rename_all = "camelCase")]
-    SetConsumerPreferredLayers { id: ConsumerId, preferred_layers: ConsumerLayers }
+    SetConsumerPreferredLayers {
+        id: ConsumerId,
+        preferred_layers: ConsumerLayers,
+    },
 }
 
 #[derive(Deserialize, Debug)]
@@ -305,7 +308,10 @@ impl Handler<ClientMessage> for SvcConnection {
                 // message and are stored in connection struct for future use
                 self.client_rtp_capabilities.replace(rtp_capabilities);
             }
-            ClientMessage::SetConsumerPreferredLayers { id, preferred_layers } => {
+            ClientMessage::SetConsumerPreferredLayers {
+                id,
+                preferred_layers,
+            } => {
                 if let Some(consumer) = self.consumers.get(&id).cloned() {
                     actix::spawn(async move {
                         match consumer.set_preferred_layers(preferred_layers).await {
